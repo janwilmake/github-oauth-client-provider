@@ -19,9 +19,15 @@ npm i simplerauth-github-provider
 
 3. Add to your worker:
 
-```typescript
-import { handleOAuth, getAccessToken } from "simplerauth-github-provider";
+### Direct flow
 
+```typescript
+import {
+  handleOAuth,
+  getAccessToken,
+  CodeDO,
+} from "simplerauth-github-provider";
+export { CodeDO };
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     // Handle OAuth routes
@@ -31,6 +37,7 @@ export default {
     // Check if user is authenticated
     const accessToken = getAccessToken(request);
     if (!accessToken) {
+      // Redirect users to `/authorize?redirect_to=/dashboard` for simple login.
       return Response.redirect(
         "/authorize?redirect_to=" + encodeURIComponent(request.url),
       );
@@ -42,11 +49,27 @@ export default {
 };
 ```
 
-## Usage
+### Enforced Authentication Flow:
 
-### Direct Flow
-
-Redirect users to `/authorize?redirect_to=/dashboard` for simple login. See [demo.ts](demo.ts) for a complete example.
+```typescript
+import { CodeDO, withSimplerAuth } from "./github-oauth-client-provider";
+export { CodeDO };
+export default {
+  fetch: withSimplerAuth(async (request, env, ctx) => {
+    return new Response(
+      `<html><body>
+        <h1>OAuth Demo</h1>
+        <p>Welcome, ${ctx.user.name || ctx.user.login}!</p>
+        <img src="${ctx.user.avatar_url}" alt="Avatar" width="50" height="50">
+        <p>Username: ${ctx.user.login}</p>
+        <a href="/logout">Logout</a><br>
+        <a href="/provider">Try provider flow example</a>
+      </body></html>`,
+      { headers: { "Content-Type": "text/html" } },
+    );
+  }),
+};
+```
 
 ### OAuth Provider Flow
 
