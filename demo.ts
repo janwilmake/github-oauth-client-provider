@@ -35,7 +35,7 @@ async function handleHome(request: Request): Promise<Response> {
         <body>
           <h1>OAuth Demo</h1>
           <p>You are not logged in.</p>
-          <a href="/authorize">Login with GitHub (direct flow)</a>
+          <a href="/authorize">Login with GitHub (direct flow)</a><br>
           <a href="/provider">Try provider flow example</a>
         </body>
       </html>
@@ -82,7 +82,7 @@ async function handleHome(request: Request): Promise<Response> {
         <img src="${user.avatar_url}" alt="Avatar" width="50" height="50">
         <p>Username: ${user.login}</p>
         <p>Email: ${user.email || "Private"}</p>
-        <a href="/logout">Logout</a>
+        <a href="/logout">Logout</a><br>
         <a href="/provider">Try provider flow example</a>
       </body>
     </html>
