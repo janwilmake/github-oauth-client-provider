@@ -1,6 +1,6 @@
 {
   "name": "simplerauth-github-provider",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "files": [
     "github-oauth-client-provider.ts"
   ],

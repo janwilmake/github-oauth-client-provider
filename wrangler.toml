@@ -2,7 +2,7 @@ name = "github-oauth-client-provider-test"
 compatibility_date = "2025-06-18"
 route.custom_domain = true
 route.pattern = "github-provider.simplerauth.com"
-main="demo.ts"
+main="decorator-demo.ts"
 assets.directory = "./public"
 [[durable_objects.bindings]]
 name = "CODES"
