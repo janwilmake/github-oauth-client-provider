@@ -756,13 +756,23 @@ export function withSimplerAuth<TEnv = {}>(
     }
 
     if (!user) {
+      const isBrowser = request.headers.get("accept")?.includes("text/html");
       // Require login
-      return new Response(null, {
-        status: 302,
-        headers: {
-          Location: `/authorize?redirect_to=${encodeURIComponent(request.url)}`,
+      const Location = `${
+        new URL(request.url).origin
+      }/authorize?redirect_to=${encodeURIComponent(request.url)}`;
+      return new Response(
+        `"access_token" Cookie or "Authorization" header required. User must login at ${Location}.`,
+        {
+          status: isBrowser ? 302 : 401,
+          headers: {
+            Location,
+            "X-Login-URL": Location,
+            // see https://datatracker.ietf.org/doc/html/rfc9110#name-www-authenticate
+            "WWW-Authenticate": `Bearer realm="main", login_url="${Location}"`,
+          },
         },
-      });
+      );
     }
 
     // Create enhanced context with user and registered status
