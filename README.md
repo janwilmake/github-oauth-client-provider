@@ -150,3 +150,5 @@ As an attempt at making this more agent-friendly, this uses standard OAuth 2.0. 
   },
 }
 ```
+
+An agent not using a browser could either try and login themselves at `Location`, or they could pass that to a User-controlled browser to retrieve the required credentials.
