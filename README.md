@@ -1,5 +1,7 @@
 # GitHub OAuth Provider
 
+[![janwilmake/github-oauth-client-provider context](https://badge.forgithub.com/janwilmake/github-oauth-client-provider)](https://uithub.com/janwilmake/github-oauth-client-provider) [![](https://b.lmpify.com)](https://lmpify.com?q=https://uithub.com/janwilmake/github-oauth-client-provider/tree/main/README.md)
+
 This github oauth client-provider uses the client's domain name as the client_id and automatically derives the redirect_uri from it (e.g., `https://example.com/callback`), eliminating the need for client registration while maintaining security through domain validation.
 
 [![](https://b.lmpify.com/Initial_prompt)](https://lmpify.com/httpsuithubcomj-uiq7t40)
