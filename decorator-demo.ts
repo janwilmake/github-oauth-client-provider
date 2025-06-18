@@ -1,4 +1,4 @@
-import { CodeDO, withSimplerAuth } from "simplerauth-github-oauth";
+import { CodeDO, withSimplerAuth } from "./github-oauth-client-provider";
 export { CodeDO };
 export default {
   fetch: withSimplerAuth(async (request, env, ctx) => {
