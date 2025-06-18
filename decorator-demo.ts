@@ -1,31 +1,17 @@
-import {
-  Env,
-  CodeDO,
-  GitHubUser,
-  withSimplerAuth,
-} from "./github-oauth-client-provider";
-
+import { CodeDO, withSimplerAuth } from "simplerauth-github-oauth";
 export { CodeDO };
-
 export default {
-  fetch: withSimplerAuth(async (request, env, { user }): Promise<Response> => {
+  fetch: withSimplerAuth(async (request, env, ctx) => {
     return new Response(
-      `
-    <html>
-      <body>
+      `<html><body>
         <h1>OAuth Demo</h1>
-        <p>Welcome, ${user.name || user.login}!</p>
-        <img src="${user.avatar_url}" alt="Avatar" width="50" height="50">
-        <p>Username: ${user.login}</p>
-        <p>Email: ${user.email || "Private"}</p>
+        <p>Welcome, ${ctx.user.name || ctx.user.login}!</p>
+        <img src="${ctx.user.avatar_url}" alt="Avatar" width="50" height="50">
+        <p>Username: ${ctx.user.login}</p>
         <a href="/logout">Logout</a><br>
         <a href="/provider">Try provider flow example</a>
-      </body>
-    </html>
-  `,
-      {
-        headers: { "Content-Type": "text/html" },
-      },
+      </body></html>`,
+      { headers: { "Content-Type": "text/html" } },
     );
   }),
-} satisfies ExportedHandler<Env>;
+};
