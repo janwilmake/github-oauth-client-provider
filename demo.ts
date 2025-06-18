@@ -1,4 +1,9 @@
-import { handleOAuth, Env, CodeDO } from "./github-oauth-client-provider";
+import {
+  handleOAuth,
+  Env,
+  CodeDO,
+  GitHubUser,
+} from "./github-oauth-client-provider";
 
 export { CodeDO };
 
@@ -13,14 +18,14 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === "/") {
-      return handleHome(request);
+      return handleHome(request, env);
     }
 
     return new Response("Not found", { status: 404 });
   },
 } satisfies ExportedHandler<Env>;
 
-async function handleHome(request: Request): Promise<Response> {
+async function handleHome(request: Request, env: Env): Promise<Response> {
   const accessToken =
     decodeURIComponent(
       request.headers
@@ -46,32 +51,26 @@ async function handleHome(request: Request): Promise<Response> {
     );
   }
 
-  // Fetch user info from GitHub
-  const userResponse = await fetch("https://api.github.com/user", {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "User-Agent": "OAuth-Demo",
-    },
-  });
-
-  if (!userResponse.ok) {
+  const userDOId = env.CODES.idFromName(`user:${accessToken}`);
+  const userDO = env.CODES.get(userDOId);
+  const userData = await userDO.getUser();
+  if (!userData) {
     return new Response(
       `
-      <html>
-        <body>
-          <h1>OAuth Demo</h1>
-          <p>Error fetching user info</p>
-          <a href="/logout">Logout</a>
-        </body>
-      </html>
-    `,
+            <html>
+            <body>
+            <h1>OAuth Demo</h1>
+            <p>Error fetching user info</p>
+            <a href="/logout">Logout</a>
+            </body>
+            </html>
+            `,
       {
         headers: { "Content-Type": "text/html" },
       },
     );
   }
-
-  const user = (await userResponse.json()) as any;
+  const { user } = userData as unknown as { user: GitHubUser };
 
   return new Response(
     `
