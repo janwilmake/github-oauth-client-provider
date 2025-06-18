@@ -1,9 +1,4 @@
-import {
-  handleOAuth,
-  getAccessToken,
-  Env,
-  CodeDO,
-} from "./github-oauth-client-provider";
+import { handleOAuth, Env, CodeDO } from "./github-oauth-client-provider";
 
 export { CodeDO };
 
@@ -26,7 +21,14 @@ export default {
 } satisfies ExportedHandler<Env>;
 
 async function handleHome(request: Request): Promise<Response> {
-  const accessToken = getAccessToken(request);
+  const accessToken =
+    decodeURIComponent(
+      request.headers
+        .get("Cookie")
+        ?.split(";")
+        .find((c) => c.trim().startsWith("access_token="))
+        ?.split("=")[1] || "",
+    ) || null;
 
   if (!accessToken) {
     return new Response(
@@ -40,9 +42,7 @@ async function handleHome(request: Request): Promise<Response> {
         </body>
       </html>
     `,
-      {
-        headers: { "Content-Type": "text/html" },
-      },
+      { headers: { "Content-Type": "text/html" } },
     );
   }
 
