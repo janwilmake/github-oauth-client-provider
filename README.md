@@ -46,11 +46,63 @@ export default {
 
 ### Direct Flow
 
-Redirect users to `/authorize?redirect_to=/dashboard` for simple login. See `/demo.ts` for a complete example.
+Redirect users to `/authorize?redirect_to=/dashboard` for simple login. See [demo.ts](demo.ts) for a complete example.
 
 ### OAuth Provider Flow
 
 Other apps can use standard OAuth 2.0 flow with your worker as the provider. See [public/provider.html](public/provider.html) for a client example.
+
+### Client Integration Steps
+
+1. **Authorization Request**: Redirect users to your provider's authorize endpoint:
+
+   ```
+   https://your-provider.com/authorize?client_id=CLIENT_DOMAIN&redirect_uri=REDIRECT_URI&response_type=code&state=RANDOM_STATE
+   ```
+
+   Parameters:
+
+   - `client_id`: Your client's domain (e.g., `example.com`)
+   - `redirect_uri`: Where to redirect after auth (must be HTTPS and on same domain as client_id)
+   - `response_type`: Must be `code`
+   - `state`: Random string for CSRF protection
+
+2. **Handle Authorization Callback**: After user authorizes, they'll be redirected to your `redirect_uri` with:
+
+   ```
+   https://your-app.com/callback?code=AUTH_CODE&state=YOUR_STATE
+   ```
+
+3. **Exchange Code for Token**: Make a POST request to exchange the authorization code:
+
+   ```javascript
+   const response = await fetch("https://your-provider.com/token", {
+     method: "POST",
+     headers: { "Content-Type": "application/x-www-form-urlencoded" },
+     body: new URLSearchParams({
+       grant_type: "authorization_code",
+       code: "AUTH_CODE_FROM_CALLBACK",
+       client_id: "your-domain.com",
+       redirect_uri: "https://your-domain.com/callback",
+     }),
+   });
+
+   const { access_token } = await response.json();
+   ```
+
+4. **Use Access Token**: Use the token to make GitHub API requests:
+   ```javascript
+   const userResponse = await fetch("https://api.github.com/user", {
+     headers: { Authorization: `Bearer ${access_token}` },
+   });
+   ```
+
+### Security Notes
+
+- Client domains are validated - `client_id` must be a valid domain
+- Redirect URIs must be HTTPS and on the same domain as `client_id`
+- Authorization codes expire after 10 minutes
+- No client registration required - the domain serves as the client identifier
 
 ## Routes
 
