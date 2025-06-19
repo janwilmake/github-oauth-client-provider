@@ -107,10 +107,23 @@ export async function handleOAuth(
   const url = new URL(request.url);
   const path = url.pathname;
 
-  if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET) {
-    return new Response("GITHUB_CLIENT_ID or GITHUB_CLIENT_SECRET not set", {
-      status: 500,
-    });
+  if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET || !env.CODES) {
+    return new Response(
+      `Environment misconfigured. Ensure to have GITHUB_CLIENT_ID or GITHUB_CLIENT_SECRET secrets set, as well as the SQLite DO, with:
+
+[[durable_objects.bindings]]
+name = "CODES"
+class_name = "CodeDO"
+
+[[migrations]]
+new_sqlite_classes = ["CodeDO"]
+tag = "v1"
+
+      `,
+      {
+        status: 500,
+      },
+    );
   }
 
   if (path === "/token") {
