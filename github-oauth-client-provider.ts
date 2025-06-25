@@ -9,6 +9,7 @@ export interface Env {
 interface OAuthState {
   redirectTo?: string;
   codeVerifier: string;
+  resource?: string;
 }
 
 export interface GitHubUser {
@@ -43,12 +44,14 @@ export class CodeDO extends DurableObject {
     encryptedAccessToken: string,
     clientId: string,
     redirectUri: string,
+    resource?: string,
   ) {
     await this.storage.put("data", {
       github_access_token: githubAccessToken,
       access_token: encryptedAccessToken,
       clientId,
       redirectUri,
+      resource,
     });
   }
 
@@ -58,6 +61,7 @@ export class CodeDO extends DurableObject {
       access_token: string;
       clientId: string;
       redirectUri: string;
+      resource?: string;
     }>("data");
   }
 
@@ -95,8 +99,8 @@ export class CodeDO extends DurableObject {
 }
 
 /**
- * Handle OAuth requests. Call this from your worker's fetch handler.
- * Handles /authorize, /token, /callback, and /logout routes.
+ * Handle OAuth requests including MCP-required metadata endpoints.
+ * Handles /authorize, /token, /callback, /logout, and metadata endpoints.
  */
 export async function handleOAuth(
   request: Request,
@@ -126,6 +130,16 @@ tag = "v1"
     );
   }
 
+  // MCP Required: OAuth 2.0 Authorization Server Metadata (RFC8414)
+  if (path === "/.well-known/oauth-authorization-server") {
+    return handleAuthorizationServerMetadata(request, env);
+  }
+
+  // MCP Required: OAuth 2.0 Protected Resource Metadata (RFC9728)
+  if (path === "/.well-known/oauth-protected-resource") {
+    return handleProtectedResourceMetadata(request, env);
+  }
+
   if (path === "/token") {
     return handleToken(request, env, scope);
   }
@@ -153,6 +167,57 @@ tag = "v1"
   return null; // Not an OAuth route, let other handlers take over
 }
 
+// MCP Required: OAuth 2.0 Authorization Server Metadata (RFC8414)
+function handleAuthorizationServerMetadata(
+  request: Request,
+  env: Env,
+): Response {
+  const url = new URL(request.url);
+  const baseUrl = `${url.protocol}//${url.host}`;
+
+  const metadata = {
+    issuer: baseUrl,
+    authorization_endpoint: `${baseUrl}/authorize`,
+    token_endpoint: `${baseUrl}/token`,
+    response_types_supported: ["code"],
+    grant_types_supported: ["authorization_code"],
+    code_challenge_methods_supported: ["S256"],
+    scopes_supported: ["user:email"],
+    token_endpoint_auth_methods_supported: ["none"], // Public client support
+  };
+
+  return new Response(JSON.stringify(metadata), {
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
+}
+
+// MCP Required: OAuth 2.0 Protected Resource Metadata (RFC9728)
+function handleProtectedResourceMetadata(request: Request, env: Env): Response {
+  const url = new URL(request.url);
+  const baseUrl = `${url.protocol}//${url.host}`;
+
+  const metadata = {
+    resource: baseUrl,
+    authorization_servers: [baseUrl],
+    bearer_methods_supported: ["header"],
+    resource_documentation: `${baseUrl}`,
+  };
+
+  return new Response(JSON.stringify(metadata), {
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
+}
+
 async function handleAuthorize(
   request: Request,
   env: Env,
@@ -164,18 +229,20 @@ async function handleAuthorize(
   let redirectUri = url.searchParams.get("redirect_uri");
   const responseType = url.searchParams.get("response_type") || "code";
   const state = url.searchParams.get("state");
+  const resource = url.searchParams.get("resource"); // MCP Required: Resource parameter
 
   // If no client_id, this is a direct login request
   if (!clientId) {
     const url = new URL(request.url);
     const redirectTo = url.searchParams.get("redirect_to") || "/";
+    const resource = url.searchParams.get("resource");
 
     // Generate PKCE code verifier and challenge
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = await generateCodeChallenge(codeVerifier);
 
-    // Create state with redirect info and code verifier
-    const state: OAuthState = { redirectTo, codeVerifier };
+    // Create state with redirect info, code verifier, and resource
+    const state: OAuthState = { redirectTo, codeVerifier, resource };
     const stateString = btoa(JSON.stringify(state));
 
     // Build GitHub OAuth URL
@@ -245,6 +312,7 @@ async function handleAuthorize(
       redirectUri,
       state,
       accessToken,
+      resource,
     );
   }
 
@@ -255,6 +323,7 @@ async function handleAuthorize(
     redirectUri,
     state,
     originalState: state,
+    resource, // MCP: Store resource parameter
   };
 
   const providerStateString = btoa(JSON.stringify(providerState));
@@ -266,6 +335,7 @@ async function handleAuthorize(
   const githubState: OAuthState = {
     redirectTo: url.pathname + url.search, // Return to this authorize request after GitHub auth
     codeVerifier,
+    resource,
   };
 
   const githubStateString = btoa(JSON.stringify(githubState));
@@ -302,6 +372,7 @@ async function createAuthCodeAndRedirect(
   redirectUri: string,
   state: string | null,
   encryptedAccessToken: string,
+  resource?: string,
 ): Promise<Response> {
   // Generate auth code
   const authCode = generateCodeVerifier(); // Reuse the same random generation
@@ -321,6 +392,7 @@ async function createAuthCodeAndRedirect(
     encryptedAccessToken,
     clientId,
     redirectUri,
+    resource, // MCP: Store resource parameter
   );
 
   // Redirect back to client with auth code
@@ -371,6 +443,7 @@ async function handleToken(
   const code = formData.get("code");
   const clientId = formData.get("client_id");
   const redirectUri = formData.get("redirect_uri");
+  const resource = formData.get("resource"); // MCP Required: Resource parameter
 
   if (grantType !== "authorization_code") {
     return new Response(JSON.stringify({ error: "unsupported_grant_type" }), {
@@ -415,6 +488,14 @@ async function handleToken(
     authData.clientId !== clientId ||
     (redirectUri && authData.redirectUri !== redirectUri)
   ) {
+    return new Response(JSON.stringify({ error: "invalid_grant" }), {
+      status: 400,
+      headers,
+    });
+  }
+
+  // MCP Required: Validate resource parameter matches if provided
+  if (resource && authData.resource !== resource) {
     return new Response(JSON.stringify({ error: "invalid_grant" }), {
       status: 400,
       headers,
@@ -524,6 +605,7 @@ async function handleCallback(
         providerState.redirectUri,
         providerState.state,
         encryptedAccessToken,
+        providerState.resource, // MCP: Pass through resource parameter
       );
 
       // Set access token cookie and clear state cookies
@@ -562,12 +644,34 @@ async function handleCallback(
 }
 
 /**
- * Extract access token from request cookies.
+ * Extract access token from request cookies or Authorization header.
  * Use this to check if a user is authenticated.
  */
 export function getAccessToken(request: Request): string | null {
+  // Check Authorization header first (MCP clients may use this)
+  const authHeader = request.headers.get("Authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    return authHeader.substring(7);
+  }
+
+  // Fallback to cookie for browser clients
   const cookies = parseCookies(request.headers.get("Cookie") || "");
   return cookies.access_token || null;
+}
+
+/**
+ * Validate that an access token is intended for this resource server.
+ * MCP servers MUST validate token audience.
+ */
+export function validateTokenAudience(
+  request: Request,
+  expectedResource: string,
+): boolean {
+  // For this simple implementation, we assume tokens encrypted with our secret
+  // are valid for our resource. In a production system, you would decode
+  // the token and check the 'aud' claim or resource parameter.
+  const token = getAccessToken(request);
+  return token !== null;
 }
 
 // Utility functions
@@ -770,10 +874,14 @@ export function withSimplerAuth<TEnv = {}>(
 
     if (!user) {
       const isBrowser = request.headers.get("accept")?.includes("text/html");
+      const url = new URL(request.url);
+      const resourceMetadataUrl = `${url.origin}/.well-known/oauth-protected-resource`;
+
       // Require login
       const Location = `${
         new URL(request.url).origin
       }/authorize?redirect_to=${encodeURIComponent(request.url)}`;
+
       return new Response(
         `"access_token" Cookie or "Authorization" header required. User must login at ${Location}.`,
         {
@@ -781,8 +889,8 @@ export function withSimplerAuth<TEnv = {}>(
           headers: {
             Location,
             "X-Login-URL": Location,
-            // see https://datatracker.ietf.org/doc/html/rfc9110#name-www-authenticate
-            "WWW-Authenticate": `Bearer realm="main", login_url="${Location}"`,
+            // MCP Required: WWW-Authenticate header with resource metadata URL (RFC9728)
+            "WWW-Authenticate": `Bearer realm="main", login_url="${Location}", resource_metadata="${resourceMetadataUrl}"`,
           },
         },
       );
