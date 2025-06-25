@@ -812,7 +812,7 @@ async function decrypt(encrypted: string, secret: string): Promise<string> {
   return decoder.decode(decrypted);
 }
 
-interface UserContext extends ExecutionContext {
+export interface UserContext extends ExecutionContext {
   /** Should contain authenticated Github User */
   user: GitHubUser;
   /** GitHub Access token */
