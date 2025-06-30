@@ -1,6 +1,6 @@
 # GitHub OAuth Provider
 
-[![janwilmake/github-oauth-client-provider context](https://badge.forgithub.com/janwilmake/github-oauth-client-provider/tree/main/README.md)](https://uithub.com/janwilmake/github-oauth-client-provider/tree/main/README.md) [![](https://b.lmpify.com)](https://lmpify.com?q=https://uithub.com/janwilmake/github-oauth-client-provider/tree/main/README.md) [![](https://badge.xymake.com/janwilmake/status/1935257829767524501)](https://x.com/janwilmake/status/1935257829767524501)
+[![janwilmake/github-oauth-client-provider context](https://badge.forgithub.com/janwilmake/github-oauth-client-provider/tree/main/README.md)](https://uithub.com/janwilmake/github-oauth-client-provider/tree/main/README.md) [![](https://b.lmpify.com)](https://letmeprompt.com?q=https://uithub.com/janwilmake/github-oauth-client-provider/tree/main/README.md) [![](https://badge.xymake.com/janwilmake/status/1935257829767524501)](https://x.com/janwilmake/status/1935257829767524501)
 
 This github oauth client-provider uses the client's domain name as the client_id and automatically derives the `redirect_uri` from it (e.g., `https://example.com/callback`), eliminating the need for client registration while maintaining security through domain validation.
 
@@ -52,7 +52,7 @@ export default {
 ### Enforced Authentication Flow:
 
 ```typescript
-import { CodeDO, withSimplerAuth } from "./github-oauth-client-provider";
+import { CodeDO, withSimplerAuth } from "simplerauth-github-provider";
 export { CodeDO };
 export default {
   fetch: withSimplerAuth(async (request, env, ctx) => {
